@@ -32,6 +32,9 @@ STOP = set(
     "конечно всю между ли сколько каком какие какая какое ваш наш".split()
 )
 
+# вопрос «сколько длится ремонт» и пункт «срок ремонта» не делят ни одного слова — сводим к одной основе
+SYNONYMS = {stem: "срок" for stem in ("длит", "длительн", "продолжительн", "ждат", "ждем", "ждут")}
+
 
 def tokens(text: str) -> list[str]:
     words = _WORD.findall(text.lower().replace("ё", "е"))
@@ -46,7 +49,7 @@ def tokens(text: str) -> list[str]:
                 stem = stem[:-1]
         else:
             stem = _en.stemWord(w)
-        out.append(stem)
+        out.append(SYNONYMS.get(stem, stem))
     return out
 
 

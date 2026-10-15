@@ -17,6 +17,14 @@ def test_best_fragment_by_meaning(library):
     assert top("Во сколько работаете в субботу?").source == "Памятка приёмщику.txt"
 
 
+def test_duration_question_finds_term(library):
+    """«Сколько длится» и «сколько ждать» находят пункт про срок ремонта."""
+    assert tokens("длится") == tokens("срок") == tokens("ждать")
+    for q in ("Сколько длится ремонт?", "Сколько ждать ремонт?"):
+        pages = [chunk.page for chunk, _ in library.index.search(q)]
+        assert 2 in pages, q
+
+
 def test_nothing_in_common(library):
     assert library.index.search("пароль wifi") == []
 
