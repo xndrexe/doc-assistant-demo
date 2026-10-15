@@ -67,7 +67,8 @@ def split_pages(pages: list[Page], limit: int = CHUNK_CHARS) -> list[Chunk]:
         for sentence in sentences:
             if current and len(" ".join(current)) + len(sentence) > limit:
                 chunks.append(Chunk(page.source, page.page, " ".join(current)))
-                current = current[-1:]
+                # фрагмент из одного предложения не переносим: следующий целиком его повторил бы
+                current = current[-1:] if len(current) > 1 else []
             current.append(sentence)
         if current:
             chunks.append(Chunk(page.source, page.page, " ".join(current)))

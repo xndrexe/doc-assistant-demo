@@ -151,5 +151,6 @@ def _with_sources(reply: str, chunks: list[Chunk]) -> Answer:
 def _plain(text: str) -> str:
     """Убирает разметку, которую модели ставят вопреки просьбе."""
     text = re.sub(r"\*\*(.+?)\*\*|__(.+?)__", lambda m: m.group(1) or m.group(2), text)
-    text = re.sub(r"^\s*#+\s*", "", text, flags=re.M)
-    return re.sub(r"^\s*[*•]\s+", "— ", text, flags=re.M)
+    # только пробелы и табы: \s захватил бы переводы строк и склеил абзацы
+    text = re.sub(r"^[ \t]*#+[ \t]*", "", text, flags=re.M)
+    return re.sub(r"^[ \t]*[*•][ \t]+", "— ", text, flags=re.M)
