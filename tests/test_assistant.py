@@ -104,6 +104,8 @@ def test_with_sources_edge_cases():
     assert answer.text == "Раз [1] два [2] три."
     assert answer.sources == [Source("a.pdf", 1), Source("b.docx", None)]
     assert Source("b.docx", None).label() == "b.docx"
+    # соседние ссылки на одну страницу схлопываются
+    assert _with_sources("Цена [1][2], срок [1] [2] [3].", chunks).text == "Цена [1], срок [1] [2]."
 
 
 def test_fragments_limit_passed_to_search(library, llm):

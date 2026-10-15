@@ -144,6 +144,8 @@ def _with_sources(reply: str, chunks: list[Chunk]) -> Answer:
         return "[" + ", ".join(map(str, numbers)) + "]" if numbers else ""
 
     text = _CITE.sub(renumber, reply)
+    # «[1][2]» про два фрагмента одной страницы после перенумерации стало бы «[1][1]»
+    text = re.sub(r"(\[[\d, ]+\])(?:[ \t]*\1)+", r"\1", text)
     text = re.sub(r"[ \t]+([.,;:])", r"\1", re.sub(r"[ \t]{2,}", " ", text)).strip()
     return Answer(text, sources)
 
