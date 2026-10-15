@@ -106,3 +106,45 @@ def test_no_key_no_header(server):
     s = server(ok("локальная модель"))
     LLM(s.url, "", "llama").chat([])
     assert s.requests[0][1] is None
+
+
+class FakeResponse:
+    def __init__(self, code, headers=None, payload=None):
+        self.status_code = code
+        self.headers = headers or {}
+        self._payload = payload
+        self.text = ""
+
+    def json(self):
+        return self._payload
+
+
+def test_pauses_double_and_respect_retry_after(monkeypatch):
+    replies = [
+        FakeResponse(503),
+        FakeResponse(429, {"Retry-After": "10"}),
+        FakeResponse(429, {"Retry-After": "999"}),
+        FakeResponse(200, payload=ok("ok")[1]),
+    ]
+    sleeps = []
+    monkeypatch.setattr("docassist.llm.requests.post", lambda *a, **k: replies.pop(0))
+    monkeypatch.setattr("docassist.llm.time.sleep", sleeps.append)
+    assert LLM("http://x", "k", "m", pause=1, attempts=4).chat([]) == "ok"
+    # 1, затем Retry-After 10 больше удвоенной паузы, затем потолок 30 секунд
+    assert sleeps == [1, 10, 30]
+
+
+def test_retry_after_bad_values():
+    from docassist.llm import _retry_after
+
+    assert _retry_after(FakeResponse(429)) == 0
+    assert _retry_after(FakeResponse(429, {"Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT"})) == 0
+    assert _retry_after(FakeResponse(429, {"Retry-After": "2.5"})) == 2.5
+
+
+def test_forbidden_no_retry(monkeypatch):
+    calls = []
+    monkeypatch.setattr("docassist.llm.requests.post", lambda *a, **k: calls.append(1) or FakeResponse(403))
+    with pytest.raises(LLMError, match="403"):
+        LLM("http://x", "k", "m").chat([])
+    assert len(calls) == 1

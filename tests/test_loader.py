@@ -30,3 +30,38 @@ def test_unreadable(tmp_path):
         read_document(blank)
     with pytest.raises(UnreadableDocument, match="не поддерживается"):
         read_document(tmp_path / "таблица.xlsx")
+
+
+def test_docx_tables_and_upper_suffix(tmp_path):
+    from docx import Document
+
+    path = tmp_path / "Прайс.DOCX"
+    d = Document()
+    d.add_paragraph("Цены на ремонт")
+    d.add_paragraph("   ")
+    table = d.add_table(rows=2, cols=2)
+    table.cell(0, 0).text, table.cell(0, 1).text = "Услуга", "Цена"
+    table.cell(1, 0).text, table.cell(1, 1).text = " Диагностика ", "500"
+    d.save(path)
+    (page,) = read_document(path)
+    assert page.source == "Прайс.DOCX" and page.page is None
+    assert page.text == "Цены на ремонт\nУслуга | Цена\nДиагностика | 500"
+
+
+def test_markdown_and_bad_encoding(tmp_path):
+    md = tmp_path / "faq.md"
+    md.write_text("# Вопросы\nОтвет.", encoding="utf-8")
+    assert read_document(md)[0].text == "# Вопросы\nОтвет."
+    cp = tmp_path / "старый.txt"
+    cp.write_bytes("Гарантия".encode("cp1251"))
+    # чужая кодировка не роняет чтение
+    assert read_document(cp)[0].text
+
+
+def test_broken_docx(tmp_path):
+    bad = tmp_path / "битый.docx"
+    bad.write_bytes(b"not a zip")
+    with pytest.raises(UnreadableDocument, match="не открылся"):
+        read_document(bad)
+    with pytest.raises(UnreadableDocument, match="без расширения"):
+        read_document(tmp_path / "README")

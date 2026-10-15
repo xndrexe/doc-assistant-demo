@@ -128,3 +128,34 @@ def test_format_without_sources():
     assert tg.format_answer(Answer("Ответа нет.", found=False)) == "Ответа нет."
     two = Answer("А [1], Б [2].", [Source("a.pdf", 2), Source("b.docx", None)])
     assert tg.format_answer(two).endswith("Источники:\n[1] a.pdf, стр. 2\n[2] b.docx")
+
+
+async def test_empty_library_and_remove_without_name(tmp_path, llm):
+    from docassist.assistant import Assistant, Library
+
+    bot, dp = tg.build(Assistant(Library(tmp_path / "docs"), llm), "42:TEST", frozenset({ADMIN}))
+    bot.session = session = FakeTelegram()
+    await dp.feed_update(bot, update(GUEST, "/docs"))
+    await dp.feed_update(bot, update(ADMIN, "/remove"))
+    assert session.texts() == [
+        "В базе пока нет документов.",
+        "Такого документа нет. Точное имя — в списке /docs.",
+    ]
+
+
+async def test_upload_strips_path_from_name(chat, assistant, monkeypatch):
+    saved = []
+
+    async def fake_download(file, destination):
+        saved.append(destination)
+        destination.write_text("Скидка пенсионерам 10%.", encoding="utf-8")
+
+    monkeypatch.setattr(chat.bot, "download", fake_download)
+    (reply,) = await chat(ADMIN, document=doc("../../Скидки.txt"))
+    assert reply.startswith("Добавил «Скидки.txt»")
+    assert saved == [assistant.library.folder / "Скидки.txt"]
+
+
+async def test_question_without_hits(chat, llm):
+    (reply,) = await chat(GUEST, "пароль wifi")
+    assert reply == "В документах ответа нет. Уточните вопрос или спросите сотрудника." and llm.calls == []

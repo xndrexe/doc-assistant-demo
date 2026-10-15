@@ -1,5 +1,5 @@
 from docassist.loader import Page
-from docassist.search import Index, split_pages, tokens
+from docassist.search import Chunk, Index, split_pages, tokens
 
 
 def test_word_forms_match():
@@ -33,3 +33,39 @@ def test_chunks_overlap_and_limit():
 
 def test_empty_index():
     assert Index([]).search("что угодно") == []
+
+
+def test_long_sentences_no_duplicate_chunk():
+    """Фрагмент из одного длинного предложения не должен целиком повторяться в следующем."""
+    a, b, c = ("А" * 400 + ".", "Б" * 400 + ".", "В" * 400 + ".")
+    chunks = split_pages([Page("a.txt", None, f"{a} {b} {c}")], limit=700)
+    texts = [ch.text for ch in chunks]
+    assert texts == [a, b, c]
+
+
+def test_chunks_keep_page_and_source():
+    pages = [Page("d.pdf", 1, "Первая страница."), Page("d.pdf", 2, "Вторая страница.\nЕщё строка.")]
+    chunks = split_pages(pages)
+    assert [(c.source, c.page) for c in chunks] == [("d.pdf", 1), ("d.pdf", 2)]
+    assert chunks[1].text == "Вторая страница. Ещё строка."
+
+
+def test_tokens_latin_digits_and_stopwords():
+    assert tokens("Repairs phones") == tokens("repair phone")
+    assert "4500" in tokens("цена 4500 руб")
+    assert tokens("") == []
+
+
+def test_ranking_prefers_rarer_word():
+    index = Index(
+        [
+            Chunk("a.txt", None, "Ремонт телефона. Ремонт планшета."),
+            Chunk("b.txt", None, "Ремонт ноутбука и замена клавиатуры."),
+            Chunk("c.txt", None, "Ремонт часов."),
+        ]
+    )
+    hits = index.search("замена клавиатуры при ремонте")
+    assert hits[0][0].source == "b.txt"
+    assert [s for _, s in hits] == sorted((s for _, s in hits), reverse=True)
+    assert len(index.search("ремонт", top=2)) == 2
+    assert index.search("и в на") == []

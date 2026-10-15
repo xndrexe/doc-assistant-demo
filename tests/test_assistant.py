@@ -1,7 +1,8 @@
 import pytest
 
-from docassist.assistant import NO_ANSWER, NOT_FOUND_TEXT, Source
+from docassist.assistant import NO_ANSWER, NOT_FOUND_TEXT, Library, Source, _plain, _with_sources
 from docassist.llm import LLMError
+from docassist.search import Chunk
 
 
 def test_answer_with_sources(assistant, llm):
@@ -89,3 +90,35 @@ def test_unreadable_replacement_leaves_no_ghost(library):
         library.add(path)
     assert "Памятка приёмщику.txt" not in library.pages
     assert all(c.source != "Памятка приёмщику.txt" for c in library.index.chunks)
+
+
+def test_plain_keeps_paragraphs():
+    text = "Ответ.\n\n## Итог\nтекст __важно__\n\n * пункт\n• ещё"
+    assert _plain(text) == "Ответ.\n\nИтог\nтекст важно\n\n— пункт\n— ещё"
+
+
+def test_with_sources_edge_cases():
+    chunks = [Chunk("a.pdf", 1, "x"), Chunk("a.pdf", 1, "y"), Chunk("b.docx", None, "z")]
+    # два фрагмента одной страницы — один источник; [0] и [4] вне диапазона
+    answer = _with_sources("Раз [2, 1] два [3,4] три [0] .", chunks)
+    assert answer.text == "Раз [1] два [2] три."
+    assert answer.sources == [Source("a.pdf", 1), Source("b.docx", None)]
+    assert Source("b.docx", None).label() == "b.docx"
+
+
+def test_fragments_limit_passed_to_search(library, llm):
+    from docassist.assistant import Assistant
+
+    Assistant(library, llm, fragments=2).ask("Какая гарантия на ремонт и детали?")
+    prompt = llm.calls[0][1]["content"]
+    assert "[2] (" in prompt and "[3] (" not in prompt
+
+
+def test_library_ignores_other_files_and_creates_folder(tmp_path):
+    folder = tmp_path / "новая" / "папка"
+    lib = Library(folder)
+    assert folder.is_dir() and lib.pages == {} and lib.index.search("гарантия") == []
+    (folder / "заметка.MD").write_text("# Гарантия\nГарантия 30 дней.", encoding="utf-8")
+    (folder / "подпапка").mkdir()
+    lib.reload()
+    assert list(lib.pages) == ["заметка.MD"]
