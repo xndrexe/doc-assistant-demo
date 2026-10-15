@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -65,14 +66,22 @@ class Library:
         self._swap(pages)
 
     def add(self, path: Path) -> list[Page]:
-        """Читает новый файл; не читается — файл убирается и ошибка идёт выше."""
+        """Читает новый файл и держит его в папке под тем же именем; не читается — ошибка идёт выше.
+
+        Файл извне (загрузка из чата) переносится в папку только после удачного чтения, так что битая
+        повторная загрузка не трогает прежний документ. Нечитаемый файл уже в папке убирается.
+        """
+        inside = path.parent == self.folder
         try:
             doc = read_document(path)
         except UnreadableDocument:
-            # файл с тем же именем мог заменить прежний — убираем и его из поиска
             path.unlink(missing_ok=True)
-            self._swap({k: v for k, v in self.pages.items() if k != path.name})
+            if inside:
+                # файл с тем же именем мог заменить прежний — убираем и его из поиска
+                self._swap({k: v for k, v in self.pages.items() if k != path.name})
             raise
+        if not inside:
+            shutil.move(path, self.folder / path.name)
         self._swap({**self.pages, path.name: doc})
         return doc
 

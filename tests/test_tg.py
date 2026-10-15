@@ -153,7 +153,22 @@ async def test_upload_strips_path_from_name(chat, assistant, monkeypatch):
     monkeypatch.setattr(chat.bot, "download", fake_download)
     (reply,) = await chat(ADMIN, document=doc("../../Скидки.txt"))
     assert reply.startswith("Добавил «Скидки.txt»")
-    assert saved == [assistant.library.folder / "Скидки.txt"]
+    assert saved[0].name == "Скидки.txt" and saved[0].parent != assistant.library.folder
+    assert (assistant.library.folder / "Скидки.txt").exists() and not saved[0].exists()
+
+
+async def test_broken_reupload_keeps_old_document(chat, assistant, monkeypatch):
+    name = "Памятка приёмщику.txt"
+    before = (assistant.library.folder / name).read_text(encoding="utf-8")
+
+    async def blank(file, destination):
+        destination.write_text("   ", encoding="utf-8")
+
+    monkeypatch.setattr(chat.bot, "download", blank)
+    (reply,) = await chat(ADMIN, document=doc(name))
+    assert reply.startswith(f"Не смог прочитать «{name}»")
+    assert (assistant.library.folder / name).read_text(encoding="utf-8") == before
+    assert name in assistant.library.pages
 
 
 async def test_question_without_hits(chat, llm):

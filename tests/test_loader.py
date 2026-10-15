@@ -1,3 +1,5 @@
+import zipfile
+
 import pytest
 
 from docassist.loader import UnreadableDocument, read_document
@@ -65,3 +67,25 @@ def test_broken_docx(tmp_path):
         read_document(bad)
     with pytest.raises(UnreadableDocument, match="без расширения"):
         read_document(tmp_path / "README")
+
+
+def test_error_hides_server_path(tmp_path, caplog):
+    # битый .docx: python-docx пишет в ошибке полный путь, а текст ошибки уходит в Telegram
+    broken = tmp_path / "Прайс.docx"
+    broken.write_bytes(b"not a zip")
+    with pytest.raises(UnreadableDocument) as e:
+        read_document(broken)
+    assert str(tmp_path) not in str(e.value) and "повреждён" in str(e.value)
+    assert "Прайс.docx" in caplog.text  # подробности — в журнале
+
+
+def test_docx_bomb_refused(tmp_path, monkeypatch):
+    from docassist import loader
+
+    monkeypatch.setattr(loader, "MAX_DOCX_UNPACKED_MB", 1)
+    bomb = tmp_path / "бомба.docx"
+    with zipfile.ZipFile(bomb, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("word/document.xml", "0" * (2 * 1024 * 1024))
+    assert bomb.stat().st_size < 50 * 1024
+    with pytest.raises(UnreadableDocument, match="после распаковки файл больше 1 МБ"):
+        read_document(bomb)

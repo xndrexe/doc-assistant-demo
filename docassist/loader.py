@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import logging
 import re
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -10,6 +12,10 @@ from docx import Document
 from pypdf import PdfReader
 
 SUPPORTED = (".pdf", ".docx", ".txt", ".md")
+# .docx — это zip: сжатый файл на 20 МБ может распаковаться в гигабайты и съесть память
+MAX_DOCX_UNPACKED_MB = 200
+
+log = logging.getLogger(__name__)
 
 
 class UnreadableDocument(Exception):
@@ -37,7 +43,9 @@ def read_document(path: Path) -> list[Page]:
     except UnreadableDocument:
         raise
     except Exception as e:  # битый файл любого формата — одна понятная ошибка
-        raise UnreadableDocument(f"файл не открылся: {e}") from e
+        # текст уходит в чат: подробности библиотеки (там бывает полный путь на сервере) — только в журнал
+        log.warning("cannot read %s: %s", path.name, e)
+        raise UnreadableDocument("файл не открылся — похоже, он повреждён") from e
     pages = [p for p in pages if p.text.strip()]
     if not pages:
         raise UnreadableDocument("в файле нет текста — похоже на скан")
@@ -51,6 +59,10 @@ def _read_pdf(path: Path) -> list[Page]:
 
 
 def _read_docx(path: Path) -> str:
+    with zipfile.ZipFile(path) as z:
+        unpacked = sum(i.file_size for i in z.infolist())
+    if unpacked > MAX_DOCX_UNPACKED_MB * 1024 * 1024:
+        raise UnreadableDocument(f"после распаковки файл больше {MAX_DOCX_UNPACKED_MB} МБ")
     doc = Document(str(path))
     lines = [p.text for p in doc.paragraphs]
     for table in doc.tables:

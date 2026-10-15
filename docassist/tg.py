@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import tempfile
 from pathlib import Path
 
 from aiogram import Bot, Dispatcher, F, Router
@@ -89,13 +90,15 @@ def build(assistant: Assistant, token: str, admins: frozenset[int]) -> tuple[Bot
         if (doc.file_size or 0) > MAX_FILE_MB * 1024 * 1024:
             await message.answer(f"Файл больше {MAX_FILE_MB} МБ — Telegram не даст его скачать.")
             return
-        path = library.folder / name
-        await bot.download(doc, destination=path)
-        try:
-            pages = await asyncio.to_thread(library.add, path)
-        except UnreadableDocument as e:
-            await message.answer(f"Не смог прочитать «{name}»: {e}.")
-            return
+        # качаем во временную папку: битый файл не должен затереть прежний документ с тем же именем
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / name
+            await bot.download(doc, destination=path)
+            try:
+                pages = await asyncio.to_thread(library.add, path)
+            except UnreadableDocument as e:
+                await message.answer(f"Не смог прочитать «{name}»: {e}.")
+                return
         pdf_pages = sum(1 for p in pages if p.page)
         size = f", {pdf_pages} стр." if pdf_pages else ""
         await message.answer(f"Добавил «{name}»{size}. Документов в базе: {len(library.pages)}.")
