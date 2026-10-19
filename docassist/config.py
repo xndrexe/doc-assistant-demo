@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -25,7 +26,8 @@ class Config:
 def load_config() -> Config:
     load_dotenv(ROOT / ".env")
     docs = Path(os.getenv("DOCS_DIR") or "samples")
-    admins = {int(x) for x in os.getenv("ADMIN_IDS", "").replace(" ", "").split(",") if x}
+    # разделитель — запятая или пробел: «1 2» — два администратора, а не один с id 12
+    admins = {int(x) for x in re.split(r"[,\s]+", os.getenv("ADMIN_IDS", "")) if x}
     return Config(
         llm_base_url=os.getenv("LLM_BASE_URL", ""),
         llm_api_key=os.getenv("LLM_API_KEY", ""),

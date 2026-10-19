@@ -46,3 +46,9 @@ def test_relative_docs_dir_from_project_root(env):
     env.setenv("LLM_MAX_TOKENS", "")
     cfg = config.load_config()
     assert cfg.docs_dir == config.ROOT / "data" / "docs" and cfg.llm_max_tokens == 1500
+
+
+def test_admin_ids_separated_by_spaces(env):
+    # «1 2» раньше склеивалось в одного администратора с id 12
+    env.setenv("ADMIN_IDS", "111 222\t333,444")
+    assert config.load_config().admins == {111, 222, 333, 444}
