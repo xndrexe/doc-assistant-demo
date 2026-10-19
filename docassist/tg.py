@@ -14,7 +14,7 @@ from aiogram.types import Message
 
 from .assistant import Answer, Assistant
 from .llm import LLMError
-from .loader import SUPPORTED, UnreadableDocument
+from .loader import SUPPORTED, Page, UnreadableDocument
 
 log = logging.getLogger(__name__)
 
@@ -43,6 +43,11 @@ def format_answer(answer: Answer) -> str:
     return answer.text + "\n\nИсточники:\n" + "\n".join(lines)
 
 
+def _pdf_pages(pages: list[Page]) -> int:
+    # страницы с номером есть только у PDF; у Word и текста — ноль
+    return sum(1 for p in pages if p.page)
+
+
 def build(assistant: Assistant, token: str, admins: frozenset[int]) -> tuple[Bot, Dispatcher]:
     bot = Bot(token)
     router = Router()
@@ -62,8 +67,8 @@ def build(assistant: Assistant, token: str, admins: frozenset[int]) -> tuple[Bot
             return
         lines = []
         for name, pages in library.pages.items():
-            pdf_pages = sum(1 for p in pages if p.page)
-            lines.append(f"— {name}" + (f" ({pdf_pages} стр.)" if pdf_pages else ""))
+            count = _pdf_pages(pages)
+            lines.append(f"— {name}" + (f" ({count} стр.)" if count else ""))
         await message.answer("Документы в базе:\n" + "\n".join(lines))
 
     @router.message(Command("remove"))
@@ -99,8 +104,8 @@ def build(assistant: Assistant, token: str, admins: frozenset[int]) -> tuple[Bot
             except UnreadableDocument as e:
                 await message.answer(f"Не смог прочитать «{name}»: {e}.")
                 return
-        pdf_pages = sum(1 for p in pages if p.page)
-        size = f", {pdf_pages} стр." if pdf_pages else ""
+        count = _pdf_pages(pages)
+        size = f", {count} стр." if count else ""
         await message.answer(f"Добавил «{name}»{size}. Документов в базе: {len(library.pages)}.")
 
     @router.message(F.text)
