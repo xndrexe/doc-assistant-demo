@@ -148,3 +148,13 @@ def test_forbidden_no_retry(monkeypatch):
     with pytest.raises(LLMError, match="403"):
         LLM("http://x", "k", "m").chat([])
     assert len(calls) == 1
+
+
+def test_content_not_string(server):
+    # часть шлюзов отдаёт content списком частей — это ошибка модели, а не падение бота
+    s = server((200, {"choices": [{"message": {"content": [{"type": "text", "text": "Да"}]}}]}))
+    with pytest.raises(LLMError, match="непонятный ответ"):
+        LLM(s.url, "", "m", attempts=1).chat([])
+    s = server((200, {"choices": [{"message": {"content": None}}]}))
+    with pytest.raises(LLMError, match="пустой ответ"):
+        LLM(s.url, "", "m", attempts=1).chat([])

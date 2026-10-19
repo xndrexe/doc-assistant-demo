@@ -63,6 +63,9 @@ class LLM:
             content = r.json()["choices"][0]["message"]["content"]
         except (ValueError, KeyError, IndexError, TypeError) as e:
             raise LLMError(f"непонятный ответ: {r.text[:300]}") from e
+        if content is not None and not isinstance(content, str):
+            # иначе .strip() упал бы с AttributeError мимо LLMError, и бот замолчал бы без ответа
+            raise LLMError(f"непонятный ответ: {r.text[:300]}")
         if not content:
             raise LLMError("пустой ответ — мало max_tokens для этой модели?")
         return content.strip()
