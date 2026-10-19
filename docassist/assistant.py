@@ -69,14 +69,15 @@ class Library:
         """Читает новый файл и держит его в папке под тем же именем; не читается — ошибка идёт выше.
 
         Файл извне (загрузка из чата) переносится в папку только после удачного чтения, так что битая
-        повторная загрузка не трогает прежний документ. Нечитаемый файл уже в папке убирается.
+        повторная загрузка не трогает прежний документ. Нечитаемый файл уже в папке убирается,
+        нечитаемый файл извне остаётся на месте — его убирает тот, кто его принёс.
         """
         inside = path.parent == self.folder
         try:
             doc = read_document(path)
         except UnreadableDocument:
-            path.unlink(missing_ok=True)
             if inside:
+                path.unlink(missing_ok=True)
                 # файл с тем же именем мог заменить прежний — убираем и его из поиска
                 self._swap({k: v for k, v in self.pages.items() if k != path.name})
             raise
@@ -119,7 +120,11 @@ class Assistant:
         )
         if NO_ANSWER in reply:
             return Answer(NOT_FOUND_TEXT, found=False)
-        return _with_sources(_plain(reply), chunks)
+        answer = _with_sources(_plain(reply), chunks)
+        if not answer.text:
+            # от ответа остались одни выброшенные ссылки — пустое сообщение Telegram не отправит
+            return Answer(NOT_FOUND_TEXT, found=False)
+        return answer
 
 
 def _prompt(question: str, chunks: list[Chunk]) -> str:

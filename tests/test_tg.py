@@ -174,3 +174,10 @@ async def test_broken_reupload_keeps_old_document(chat, assistant, monkeypatch):
 async def test_question_without_hits(chat, llm):
     (reply,) = await chat(GUEST, "пароль wifi")
     assert reply == "В документах ответа нет. Уточните вопрос или спросите сотрудника." and llm.calls == []
+
+
+async def test_answer_of_only_bad_citations_not_empty(chat, llm):
+    # пустой текст Telegram не принимает — бот должен ответить честным «нет»
+    llm.reply = "[9]"
+    (reply,) = await chat(GUEST, "Какая гарантия на детали?")
+    assert reply == "В документах ответа нет. Уточните вопрос или спросите сотрудника."

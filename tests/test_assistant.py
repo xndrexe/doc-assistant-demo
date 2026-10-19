@@ -124,3 +124,41 @@ def test_library_ignores_other_files_and_creates_folder(tmp_path):
     (folder / "подпапка").mkdir()
     lib.reload()
     assert list(lib.pages) == ["заметка.MD"]
+
+
+def test_only_bad_citations_is_no_answer(assistant, llm):
+    """От ответа «[9]» после чистки ничего не остаётся — пустой текст не отдаём."""
+    llm.reply = "[9] **[7]**"
+    answer = assistant.ask("Какая гарантия на детали?")
+    assert not answer.found and answer.text == NOT_FOUND_TEXT and answer.sources == []
+
+
+def test_unreadable_external_file_left_in_place(library, tmp_path):
+    """Файл не из папки базы при неудаче не удаляется — он чужой."""
+    outside = tmp_path / "мой.pdf"
+    outside.write_bytes(b"not a pdf")
+    with pytest.raises(Exception, match="не открылся"):
+        library.add(outside)
+    assert outside.exists() and not (library.folder / "мой.pdf").exists()
+    assert "мой.pdf" not in library.pages
+
+
+def test_external_file_moved_into_folder(library, tmp_path):
+    outside = tmp_path / "Прайс.md"
+    outside.write_text("Чистка ноутбука — 1 200 рублей.", encoding="utf-8")
+    library.add(outside)
+    assert not outside.exists() and (library.folder / "Прайс.md").exists()
+    assert library.index.search("чистка ноутбука")[0][0].source == "Прайс.md"
+
+
+def test_prompt_label_without_page():
+    from docassist.assistant import _prompt
+
+    prompt = _prompt("Вопрос?", [Chunk("a.txt", None, "текст"), Chunk("b.pdf", 2, "ещё")])
+    assert prompt == "Фрагменты:\n\n[1] (a.txt)\nтекст\n\n[2] (b.pdf, стр. 2)\nещё\n\nВопрос: Вопрос?"
+
+
+def test_plain_leaves_inline_symbols():
+    # решётка и звёздочка посреди строки — не разметка
+    assert _plain("Тариф #2 стоит 5*3 рубля.") == "Тариф #2 стоит 5*3 рубля."
+    assert _plain("**без пары") == "**без пары"
