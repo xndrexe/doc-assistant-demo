@@ -157,6 +157,17 @@ async def test_upload_strips_path_from_name(chat, assistant, monkeypatch):
     assert (assistant.library.folder / "Скидки.txt").exists() and not saved[0].exists()
 
 
+async def test_upload_bad_file_name(chat, assistant, monkeypatch):
+    async def fake_download(file, destination):
+        destination.write_text("Скидка пенсионерам 10%.", encoding="utf-8")
+
+    monkeypatch.setattr(chat.bot, "download", fake_download)
+    for name in ("Скидки\x00.txt", "я" * 200 + ".txt"):
+        (reply,) = await chat(ADMIN, document=doc(name))
+        assert reply.startswith("Не подходит имя файла")
+    assert len(assistant.library.pages) == 3
+
+
 async def test_broken_reupload_keeps_old_document(chat, assistant, monkeypatch):
     name = "Памятка приёмщику.txt"
     before = (assistant.library.folder / name).read_text(encoding="utf-8")

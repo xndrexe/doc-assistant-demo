@@ -93,6 +93,10 @@ def build(assistant: Assistant, token: str, admins: frozenset[int]) -> tuple[Bot
         if Path(name).suffix.lower() not in SUPPORTED:
             await message.answer("Пришлите PDF, Word (.docx) или текстовый файл.")
             return
+        # имя с нулевым байтом или длиннее 255 байт ФС не примет — администратор остался бы без ответа
+        if "\x00" in name or len(name.encode()) > 255:
+            await message.answer("Не подходит имя файла — переименуйте покороче и пришлите ещё раз.")
+            return
         if (doc.file_size or 0) > MAX_FILE_MB * 1024 * 1024:
             await message.answer(f"Файл больше {MAX_FILE_MB} МБ — Telegram не даст его скачать.")
             return
