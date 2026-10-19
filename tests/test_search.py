@@ -89,3 +89,26 @@ def test_index_of_stopword_chunks():
     # ни одного значимого слова во всех фрагментах: средняя длина 0, поиск не должен делить на ноль
     index = Index([Chunk("a.txt", None, "и в на"), Chunk("b.txt", None, "как же так")])
     assert index.search("гарантия и в на") == []
+
+
+def test_tokens_thread_safe():
+    # вопросы идут в пуле потоков параллельно сборке индекса: общий стеммер путал основы и падал
+    import threading
+
+    text = "Гарантийный ремонт дисплея телефона длится до двадцати рабочих дней, возврат по чеку. " * 2000
+    expected = tokens(text)
+    results, errors = [], []
+
+    def run():
+        try:
+            results.append(tokens(text))
+        except Exception as e:
+            errors.append(e)
+
+    threads = [threading.Thread(target=run) for _ in range(6)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert errors == []
+    assert results == [expected] * 6

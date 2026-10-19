@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import math
 import re
+import threading
 from collections import Counter
 from dataclasses import dataclass, field
 
@@ -17,8 +18,9 @@ import snowballstemmer
 from .loader import Page
 
 CHUNK_CHARS = 700  # фрагмент — пара абзацев: модели хватает смысла, лишнего мало
-_ru = snowballstemmer.stemmer("russian")
-_en = snowballstemmer.stemmer("english")
+# стеммер хранит разбираемое слово в себе: вопросы и сборка индекса идут в разных потоках,
+# общий на всех путал основы и падал с IndexError — у каждого потока свой
+_local = threading.local()
 _WORD = re.compile(r"[a-zа-я0-9]+")
 _SENTENCE = re.compile(r"(?<=[.!?…])\s+|\n+")
 STOP = set(
@@ -36,19 +38,27 @@ STOP = set(
 SYNONYMS = {stem: "срок" for stem in ("длит", "длительн", "продолжительн", "ждат", "ждем", "ждут")}
 
 
+def _stemmers() -> tuple:
+    if not hasattr(_local, "ru"):
+        _local.ru = snowballstemmer.stemmer("russian")
+        _local.en = snowballstemmer.stemmer("english")
+    return _local.ru, _local.en
+
+
 def tokens(text: str) -> list[str]:
+    ru, en = _stemmers()
     words = _WORD.findall(text.lower().replace("ё", "е"))
     out = []
     for w in words:
         if w in STOP:
             continue
         if re.search("[а-я]", w):
-            stem = _ru.stemWord(w)
+            stem = ru.stemWord(w)
             # снежок режет «дисплей» до «диспл», а «дисплея» до «диспле» — сводим к одному
             if len(stem) > 3 and stem.endswith("е"):
                 stem = stem[:-1]
         else:
-            stem = _en.stemWord(w)
+            stem = en.stemWord(w)
         out.append(SYNONYMS.get(stem, stem))
     return out
 
