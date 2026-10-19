@@ -62,7 +62,8 @@ class Chunk:
 
 def split_pages(pages: list[Page], limit: int = CHUNK_CHARS) -> list[Chunk]:
     """Режет по предложениям, соседние фрагменты делят одно предложение — чтобы
-    мысль на стыке не потерялась."""
+    мысль на стыке не потерялась. Фрагмент из одного длинного предложения с
+    соседом не делится."""
     chunks = []
     for page in pages:
         sentences = [s.strip() for s in _SENTENCE.split(page.text) if s.strip()]

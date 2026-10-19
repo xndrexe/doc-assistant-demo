@@ -47,7 +47,12 @@ cp .env.example .env          # вписать адрес, ключ и имя м
   `.env.example`. Для своей модели в Ollama ключ не нужен.
 - `LLM_MODEL` — имя модели у этого сервиса. Чтобы поставить другую модель,
   меняется только эта строка.
+- `LLM_MAX_TOKENS` — сколько токенов модель может потратить на ответ, по
+  умолчанию 1500; «думающим» моделям нужно больше.
 - `DOCS_DIR` — папка с документами; по умолчанию выдуманные из `samples/`.
+  Относительный путь считается от папки проекта, а не от текущей. Сюда же
+  бот кладёт документы, которые присылает администратор. Для одного запуска
+  папку можно задать ключом: `python -m docassist --docs путь ask "вопрос"`.
 - `TELEGRAM_TOKEN` — токен бота от @BotFather; `ADMIN_IDS` — id
   администраторов через запятую, только им можно загружать и удалять
   документы.
@@ -95,7 +100,9 @@ tests/          чтение, поиск, клиент модели, ответ�
 
 Пересобрать документы: `.venv/bin/python tools/make_samples.py`. Снимки:
 `.venv/bin/python tools/render_chat.py` (нужна модель в `.env`), затем
-`python tools/shoot.py` (Playwright с Chromium).
+`.venv/bin/python tools/shoot.py` (Playwright ставится отдельно:
+`.venv/bin/pip install playwright && .venv/bin/playwright install chromium`).
+Для `make_samples.py` нужны шрифты DejaVu в `/usr/share/fonts/truetype/dejavu/`.
 
 ## Что можно добавить под заказ
 
