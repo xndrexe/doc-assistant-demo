@@ -77,3 +77,15 @@ def test_ranking_prefers_rarer_word():
     assert [s for _, s in hits] == sorted((s for _, s in hits), reverse=True)
     assert len(index.search("ремонт", top=2)) == 2
     assert index.search("и в на") == []
+
+
+def test_blank_page_gives_no_chunks():
+    assert split_pages([Page("a.txt", None, " \n\n "), Page("b.txt", None, "Текст.")]) == [
+        Chunk("b.txt", None, "Текст.")
+    ]
+
+
+def test_index_of_stopword_chunks():
+    # ни одного значимого слова во всех фрагментах: средняя длина 0, поиск не должен делить на ноль
+    index = Index([Chunk("a.txt", None, "и в на"), Chunk("b.txt", None, "как же так")])
+    assert index.search("гарантия и в на") == []
