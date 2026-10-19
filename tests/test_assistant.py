@@ -162,3 +162,34 @@ def test_plain_leaves_inline_symbols():
     # решётка и звёздочка посреди строки — не разметка
     assert _plain("Тариф #2 стоит 5*3 рубля.") == "Тариф #2 стоит 5*3 рубля."
     assert _plain("**без пары") == "**без пары"
+
+
+def test_remove_during_add_does_not_resurrect(library, monkeypatch):
+    """Удаление во время сборки индекса для загрузки: удалённый документ не должен вернуться в поиск."""
+    import threading
+
+    from docassist import assistant as mod
+
+    target = "Памятка приёмщику.txt"
+    real_index = mod.Index
+    fired = []
+
+    def slow_index(chunks):
+        if not fired:
+            fired.append(True)
+            # администратор удаляет документ ровно в момент сборки индекса для новой загрузки
+            other = threading.Thread(target=library.remove, args=(target,))
+            other.start()
+            other.join(timeout=0.3)
+            fired.append(other)
+        return real_index(chunks)
+
+    monkeypatch.setattr(mod, "Index", slow_index)
+    new = library.folder / "Прайс.txt"
+    new.write_text("Замена дисплея телефона — 4 500 рублей.", encoding="utf-8")
+    library.add(new)
+    fired[1].join()
+
+    assert target not in library.pages
+    assert all(c.source != target for c in library.index.chunks)
+    assert "Прайс.txt" in library.pages

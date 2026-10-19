@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 import shutil
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -52,18 +53,22 @@ class Library:
         self.folder.mkdir(parents=True, exist_ok=True)
         self.pages: dict[str, list[Page]] = {}
         self.index = Index([])
+        # загрузка идёт в отдельном потоке: без замка она собирает индекс из старого списка
+        # и возвращает в поиск документ, который администратор успел удалить
+        self._lock = threading.Lock()
         self.reload()
 
     def reload(self) -> None:
-        pages = {}
-        for path in sorted(self.folder.iterdir()):
-            if path.suffix.lower() not in SUPPORTED:
-                continue
-            try:
-                pages[path.name] = read_document(path)
-            except UnreadableDocument as e:
-                log.warning("skip %s: %s", path.name, e)
-        self._swap(pages)
+        with self._lock:
+            pages = {}
+            for path in sorted(self.folder.iterdir()):
+                if path.suffix.lower() not in SUPPORTED:
+                    continue
+                try:
+                    pages[path.name] = read_document(path)
+                except UnreadableDocument as e:
+                    log.warning("skip %s: %s", path.name, e)
+            self._swap(pages)
 
     def add(self, path: Path) -> list[Page]:
         """Читает новый файл и держит его в папке под тем же именем; не читается — ошибка идёт выше.
@@ -77,25 +82,28 @@ class Library:
             doc = read_document(path)
         except UnreadableDocument:
             if inside:
-                path.unlink(missing_ok=True)
-                # файл с тем же именем мог заменить прежний — убираем и его из поиска
-                self._swap({k: v for k, v in self.pages.items() if k != path.name})
+                with self._lock:
+                    path.unlink(missing_ok=True)
+                    # файл с тем же именем мог заменить прежний — убираем и его из поиска
+                    self._swap({k: v for k, v in self.pages.items() if k != path.name})
             raise
-        if not inside:
-            shutil.move(path, self.folder / path.name)
-        self._swap({**self.pages, path.name: doc})
+        with self._lock:
+            if not inside:
+                shutil.move(path, self.folder / path.name)
+            self._swap({**self.pages, path.name: doc})
         return doc
 
     def remove(self, name: str) -> bool:
-        if name not in self.pages:
-            return False
-        (self.folder / name).unlink(missing_ok=True)
-        self._swap({k: v for k, v in self.pages.items() if k != name})
-        return True
+        with self._lock:
+            if name not in self.pages:
+                return False
+            (self.folder / name).unlink(missing_ok=True)
+            self._swap({k: v for k, v in self.pages.items() if k != name})
+            return True
 
     def _swap(self, pages: dict[str, list[Page]]) -> None:
-        # новый индекс собирается целиком и подменяется одной операцией: вопрос,
-        # который идёт в это время, дочитает старый
+        # зовётся только под self._lock; новый индекс собирается целиком и подменяется
+        # одной операцией: вопрос, который идёт в это время, дочитает старый
         chunks = [c for doc in pages.values() for c in split_pages(doc)]
         self.pages, self.index = pages, Index(chunks)
 

@@ -77,7 +77,8 @@ def build(assistant: Assistant, token: str, admins: frozenset[int]) -> tuple[Bot
             await message.answer("Удалять документы может только администратор.")
             return
         name = (command.args or "").strip()
-        if library.remove(name):
+        # удаление ждёт замка, пока загрузка в другом потоке собирает индекс, — не держим цикл событий
+        if await asyncio.to_thread(library.remove, name):
             await message.answer(f"Удалил «{name}». Документов в базе: {len(library.pages)}.")
         else:
             await message.answer("Такого документа нет. Точное имя — в списке /docs.")
