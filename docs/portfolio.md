@@ -8,4 +8,6 @@
 
 Проверено: живой прогон на выдуманных документах сервисного центра с бесплатной моделью; бот — вживую в Telegram на тестовом боте и на тестах через настоящий диспетчер aiogram.
 
+Снимки (настоящий Telegram): docs/screens/1-vopros.png, 2-net-otveta.png; весь диалог одним снимком — ves-dialog.png.
+
 Стек: Python, aiogram, pypdf, python-docx.

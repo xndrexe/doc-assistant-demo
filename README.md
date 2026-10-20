@@ -21,14 +21,13 @@
 
 ## Как выглядит
 
-![Вопросы по договору](docs/screens/1-voprosy.png)
+| Вопрос по договору | Гарантия и вопрос мимо документов |
+|---|---|
+| ![](docs/screens/1-vopros.png) | ![](docs/screens/2-net-otveta.png) |
 
-![Ответ из разных документов и честное «нет»](docs/screens/2-neskolko-dokumentov.png)
-
-![Администратор добавляет документ](docs/screens/3-admin.png)
-
-Снимки — настоящая переписка: вопросы прошли через этого бота, ответы дала
-бесплатная модель, рамку мессенджера дорисовал `tools/render_chat.py`.
+Снимки — настоящая переписка с тестовым ботом в Telegram, ответы дала
+бесплатная модель. Весь диалог от /start одним снимком —
+[здесь](docs/screens/ves-dialog.png).
 
 ## Как запустить
 
@@ -100,10 +99,7 @@ tests/          чтение, поиск, клиент модели, ответ�
 .venv/bin/ruff check .
 ```
 
-Пересобрать документы: `.venv/bin/python tools/make_samples.py`. Снимки:
-`.venv/bin/python tools/render_chat.py` (нужна модель в `.env`), затем
-`.venv/bin/python tools/shoot.py` (Playwright ставится отдельно:
-`.venv/bin/pip install playwright && .venv/bin/playwright install chromium`).
+Пересобрать документы: `.venv/bin/python tools/make_samples.py`.
 Для `make_samples.py` нужны шрифты DejaVu в `/usr/share/fonts/truetype/dejavu/`.
 
 ## Что можно добавить под заказ
