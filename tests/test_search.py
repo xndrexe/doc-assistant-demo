@@ -1,3 +1,5 @@
+import threading
+
 from docassist.loader import Page
 from docassist.search import Chunk, Index, split_pages, tokens
 
@@ -93,8 +95,6 @@ def test_index_of_stopword_chunks():
 
 def test_tokens_thread_safe():
     # вопросы идут в пуле потоков параллельно сборке индекса: общий стеммер путал основы и падал
-    import threading
-
     text = "Гарантийный ремонт дисплея телефона длится до двадцати рабочих дней, возврат по чеку. " * 2000
     expected = tokens(text)
     results, errors = [], []

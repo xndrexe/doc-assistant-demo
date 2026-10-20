@@ -1,6 +1,18 @@
+import threading
+
 import pytest
 
-from docassist.assistant import NO_ANSWER, NOT_FOUND_TEXT, Library, Source, _plain, _with_sources
+from docassist import assistant as mod
+from docassist.assistant import (
+    NO_ANSWER,
+    NOT_FOUND_TEXT,
+    Assistant,
+    Library,
+    Source,
+    _plain,
+    _prompt,
+    _with_sources,
+)
 from docassist.llm import LLMError
 from docassist.search import Chunk
 
@@ -109,8 +121,6 @@ def test_with_sources_edge_cases():
 
 
 def test_fragments_limit_passed_to_search(library, llm):
-    from docassist.assistant import Assistant
-
     Assistant(library, llm, fragments=2).ask("Какая гарантия на ремонт и детали?")
     prompt = llm.calls[0][1]["content"]
     assert "[2] (" in prompt and "[3] (" not in prompt
@@ -152,8 +162,6 @@ def test_external_file_moved_into_folder(library, tmp_path):
 
 
 def test_prompt_label_without_page():
-    from docassist.assistant import _prompt
-
     prompt = _prompt("Вопрос?", [Chunk("a.txt", None, "текст"), Chunk("b.pdf", 2, "ещё")])
     assert prompt == "Фрагменты:\n\n[1] (a.txt)\nтекст\n\n[2] (b.pdf, стр. 2)\nещё\n\nВопрос: Вопрос?"
 
@@ -166,10 +174,6 @@ def test_plain_leaves_inline_symbols():
 
 def test_remove_during_add_does_not_resurrect(library, monkeypatch):
     """Удаление во время сборки индекса для загрузки: удалённый документ не должен вернуться в поиск."""
-    import threading
-
-    from docassist import assistant as mod
-
     target = "Памятка приёмщику.txt"
     real_index = mod.Index
     fired = []

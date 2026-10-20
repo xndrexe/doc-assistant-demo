@@ -1,7 +1,9 @@
 import zipfile
 
 import pytest
+from docx import Document
 
+from docassist import loader
 from docassist.loader import UnreadableDocument, read_document
 from tests.conftest import SAMPLES
 
@@ -35,8 +37,6 @@ def test_unreadable(tmp_path):
 
 
 def test_docx_tables_and_upper_suffix(tmp_path):
-    from docx import Document
-
     path = tmp_path / "Прайс.DOCX"
     d = Document()
     d.add_paragraph("Цены на ремонт")
@@ -80,8 +80,6 @@ def test_error_hides_server_path(tmp_path, caplog):
 
 
 def test_docx_bomb_refused(tmp_path, monkeypatch):
-    from docassist import loader
-
     monkeypatch.setattr(loader, "MAX_DOCX_UNPACKED_MB", 1)
     bomb = tmp_path / "бомба.docx"
     with zipfile.ZipFile(bomb, "w", zipfile.ZIP_DEFLATED) as z:

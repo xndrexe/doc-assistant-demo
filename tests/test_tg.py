@@ -8,7 +8,7 @@ from aiogram.methods import SendChatAction, SendMessage
 from aiogram.types import Chat, Message, Update
 
 from docassist import tg
-from docassist.assistant import Answer, Source
+from docassist.assistant import Answer, Assistant, Library, Source
 from docassist.llm import LLMError
 
 ADMIN, GUEST = 1, 42
@@ -131,8 +131,6 @@ def test_format_without_sources():
 
 
 async def test_empty_library_and_remove_without_name(tmp_path, llm):
-    from docassist.assistant import Assistant, Library
-
     bot, dp = tg.build(Assistant(Library(tmp_path / "docs"), llm), "42:TEST", frozenset({ADMIN}))
     bot.session = session = FakeTelegram()
     await dp.feed_update(bot, update(GUEST, "/docs"))

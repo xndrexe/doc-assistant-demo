@@ -6,7 +6,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
-from docassist.llm import LLM, LLMError
+from docassist.llm import LLM, LLMError, _retry_after
 
 
 class Server:
@@ -135,8 +135,6 @@ def test_pauses_double_and_respect_retry_after(monkeypatch):
 
 
 def test_retry_after_bad_values():
-    from docassist.llm import _retry_after
-
     assert _retry_after(FakeResponse(429)) == 0
     assert _retry_after(FakeResponse(429, {"Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT"})) == 0
     assert _retry_after(FakeResponse(429, {"Retry-After": "2.5"})) == 2.5
