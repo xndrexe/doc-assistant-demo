@@ -2,6 +2,7 @@
 
 python -m docassist ask "Какая гарантия на ремонт?"
 python -m docassist bot
+python -m docassist --docs путь ask "вопрос"   # другая папка с документами на один запуск
 """
 
 from __future__ import annotations
@@ -20,7 +21,11 @@ from .tg import build, format_answer
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="docassist", description="ИИ-помощник по документам")
-    parser.add_argument("--docs", type=Path, help="папка с документами (по умолчанию DOCS_DIR из .env)")
+    parser.add_argument(
+        "--docs",
+        type=Path,
+        help="папка с документами (по умолчанию DOCS_DIR из .env); относительный путь — от текущей папки",
+    )
     sub = parser.add_subparsers(dest="cmd", required=True)
     ask = sub.add_parser("ask", help="задать вопрос и получить ответ со ссылками")
     ask.add_argument("question", nargs="+")
