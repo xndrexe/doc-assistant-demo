@@ -6,6 +6,7 @@ from docassist.search import Chunk, Index, split_pages, tokens
 
 def test_word_forms_match():
     assert set(tokens("гарантии")) & set(tokens("Гарантия на детали"))
+    assert set(tokens("гарантийный")) & set(tokens("Гарантия на детали"))
     assert tokens("Ёлка") == tokens("елка")
     assert tokens("дисплей") == tokens("дисплея") == tokens("дисплеем")
     assert tokens("как и что") == []
@@ -14,6 +15,10 @@ def test_word_forms_match():
 def test_best_fragment_by_meaning(library):
     top = lambda q: library.index.search(q, top=1)[0][0]  # noqa: E731
     assert top("Какая гарантия на детали?").page == 3
+    # «гарантийный срок» дословно стоит в регламенте возвратов — он законно первый,
+    # раздел «Гарантия» сразу за ним
+    second = [c.page for c, _ in library.index.search("Какой гарантийный срок на ремонт?", top=2)]
+    assert 3 in second
     assert top("Сколько стоит диагностика при отказе от ремонта?").page == 1
     assert top("Как вернуть деньги?").source == "Регламент возвратов.docx"
     assert top("Во сколько работаете в субботу?").source == "Памятка приёмщику.txt"
