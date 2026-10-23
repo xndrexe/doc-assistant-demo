@@ -52,3 +52,10 @@ def test_admin_ids_separated_by_spaces(env):
     # «1 2» раньше склеивалось в одного администратора с id 12
     env.setenv("ADMIN_IDS", "111 222\t333,444")
     assert config.load_config().admins == {111, 222, 333, 444}
+
+
+def test_admin_ids_not_numbers(env):
+    # @username вместо числа — частая ошибка; падать трассировкой int() тут нечестно
+    env.setenv("ADMIN_IDS", "111, @boss")
+    with pytest.raises(ValueError, match="ADMIN_IDS.*@boss"):
+        config.load_config()

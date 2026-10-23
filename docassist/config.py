@@ -23,11 +23,19 @@ class Config:
     admins: frozenset[int]
 
 
+def _admin_ids(raw: str) -> set[int]:
+    # разделитель — запятая или пробел: «1 2» — два администратора, а не один с id 12
+    ids = [x for x in re.split(r"[,\s]+", raw) if x]
+    wrong = [x for x in ids if not (x.isascii() and x.isdigit())]
+    if wrong:
+        raise ValueError(f"ADMIN_IDS: нужны числовые id Telegram, а не {', '.join(wrong)}")
+    return {int(x) for x in ids}
+
+
 def load_config() -> Config:
     load_dotenv(ROOT / ".env")
     docs = Path(os.getenv("DOCS_DIR") or "samples")
-    # разделитель — запятая или пробел: «1 2» — два администратора, а не один с id 12
-    admins = {int(x) for x in re.split(r"[,\s]+", os.getenv("ADMIN_IDS", "")) if x}
+    admins = _admin_ids(os.getenv("ADMIN_IDS", ""))
     return Config(
         llm_base_url=os.getenv("LLM_BASE_URL", ""),
         llm_api_key=os.getenv("LLM_API_KEY", ""),

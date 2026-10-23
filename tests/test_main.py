@@ -47,3 +47,12 @@ def test_docs_option_overrides_config(setup, tmp_path, capsys):
     setup["llm"].reply = "Бесплатно [1]."
     assert cli.main(["--docs", str(other), "ask", "Сколько стоит доставка?"]) == 0
     assert capsys.readouterr().out.endswith("[1] a.txt\n")
+
+
+def test_bad_config_message(setup, monkeypatch, capsys):
+    def broken():
+        raise ValueError("ADMIN_IDS: только числовые id")
+
+    monkeypatch.setattr(cli, "load_config", broken)
+    assert cli.main(["ask", "вопрос"]) == 2
+    assert "ADMIN_IDS: только числовые id" in capsys.readouterr().err

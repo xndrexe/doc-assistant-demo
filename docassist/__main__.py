@@ -33,7 +33,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-    cfg = load_config()
+    try:
+        cfg = load_config()
+    except ValueError as e:
+        print(f"Ошибка в .env: {e}", file=sys.stderr)
+        return 2
     if not cfg.llm_base_url or not cfg.llm_model:
         print("Заполните LLM_BASE_URL и LLM_MODEL в .env (образец — .env.example).", file=sys.stderr)
         return 2
